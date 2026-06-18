@@ -1,0 +1,5 @@
+{"goal": "Python", "expected_contains": ["Python", "编程"], "expect_success": true}
+{"goal": "机器学习", "expected_contains": ["人工智能", "AI"], "expect_success": true}
+{"goal": "列表", "expected_contains": ["demo.txt"], "expect_success": true}
+{"goal": "", "expect_success": false}
+{"goal": "rm -rf", "expect_success": false}
