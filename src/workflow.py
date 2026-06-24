@@ -1,10 +1,13 @@
+import os
 from src.model_client import ModelClient
 from src.tools import search_notes, list_notes
 from src.guardrails import validate_input, human_confirm
 
 class AgentWorkflow:
-    def __init__(self):
+    def __init__(self, notes_dir=None):
         self.client = ModelClient()
+        # 如果未指定，默认使用 data/notes
+        self.notes_dir = notes_dir if notes_dir else os.path.join("data", "notes")
         self.logs = []
 
     def run(self, goal):
@@ -44,14 +47,15 @@ class AgentWorkflow:
         self.logs.append({"step": 0, "action": "plan", "goal": goal})
         print(f"========== 步骤 0: 规划 ==========")
         print(f"目标: {goal}")
+        print(f"笔记目录: {self.notes_dir}")
 
-        # 步骤 1：工具调用
+        # 步骤 1：工具调用（传入 self.notes_dir）
         if "列表" in goal or "列出" in goal:
             tool_name = "list_notes"
-            tool_result = list_notes()
+            tool_result = list_notes(notes_dir=self.notes_dir)
         else:
             tool_name = "search_notes"
-            tool_result = search_notes(goal, top_k=3)
+            tool_result = search_notes(goal, top_k=3, notes_dir=self.notes_dir)
 
         self.logs.append({"step": 1, "action": "tool_call", "tool": tool_name, "result": tool_result})
         print(f"========== 步骤 1: 工具调用 ==========")
@@ -102,11 +106,6 @@ class AgentWorkflow:
         try:
             resp = self.client.chat([{"role": "user", "content": prompt}])
             
-            # 打印 resp 全部内容，用于调试
-            print(f"[DEBUG] model_client.chat 返回完整内容:")
-            print(f"[DEBUG] resp: {resp}")
-            print(f"[DEBUG] resp keys: {list(resp.keys()) if isinstance(resp, dict) else 'not a dict'}")
-            
             # 检查响应中是否包含错误
             if isinstance(resp, dict) and "error" in resp:
                 error_msg = resp.get("error", "未知错误")
@@ -118,14 +117,10 @@ class AgentWorkflow:
             # 提取 content
             if isinstance(resp, dict) and "content" in resp:
                 answer = resp.get("content", "")
-                if answer:
-                    print(f"[DEBUG] 成功提取 content，长度: {len(answer)}")
-                else:
+                if not answer:
                     answer = "未生成有效回答，请检查模型输出"
-                    print(f"[DEBUG] content 为空，使用默认回答")
             else:
                 answer = "未生成有效回答，请检查模型输出"
-                print(f"[DEBUG] resp 中没有 content 字段，使用默认回答")
             
             tokens_info = {
                 "prompt_tokens": resp.get("prompt_tokens", 0) if isinstance(resp, dict) else 0,

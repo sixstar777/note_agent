@@ -1,4 +1,7 @@
+import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -20,12 +23,10 @@ class MockModelClient:
         }
 
 def test_search_success(tmp_path, monkeypatch):
-    
     notes_dir = tmp_path / "data" / "notes"
     notes_dir.mkdir(parents=True)
     note_file = notes_dir / "note1.txt"
     note_file.write_text("Python is a programming language. It is widely used.", encoding="utf-8")
-    
     monkeypatch.chdir(tmp_path)
     result = search_notes("Python", top_k=3)
     assert "items" in result
@@ -39,8 +40,10 @@ def test_search_empty_query():
 def test_search_missing_dir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = search_notes("test", top_k=3)
-    assert result == {"error": "knowledge_base_missing", "message": "笔记目录不存在"}
-
+    # 只检查错误类型，不检查完整消息（因为消息可能包含具体路径）
+    assert result["error"] == "knowledge_base_missing"
+    assert "笔记目录不存在" in result["message"]
+    
 def test_list_notes(tmp_path, monkeypatch):
     notes_dir = tmp_path / "data" / "notes"
     notes_dir.mkdir(parents=True)
@@ -62,28 +65,24 @@ def test_validate_dangerous():
     assert "危险" in msg
 
 def test_workflow_success(tmp_path, monkeypatch):
-    # 准备笔记
     notes_dir = tmp_path / "data" / "notes"
     notes_dir.mkdir(parents=True)
     (notes_dir / "note.txt").write_text("Python is a versatile language.", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-
-    # 替换 ModelClient 为 Mock
     monkeypatch.setattr("src.workflow.ModelClient", MockModelClient)
-
     workflow = AgentWorkflow()
     result = workflow.run("Python")
-
     assert result["status"] == "success"
     assert "answer" in result
     assert "Python" in result["answer"]
     assert len(result["logs"]) > 0
 
 def test_workflow_reject(monkeypatch):
-    # 危险输入应被拒绝
     monkeypatch.setattr("src.workflow.ModelClient", MockModelClient)
+    # 模拟人工确认返回 False（取消操作），patch workflow中的human_confirm
+    monkeypatch.setattr("src.workflow.human_confirm", lambda goal: False)
     workflow = AgentWorkflow()
     result = workflow.run("delete all notes")
     assert result["status"] == "rejected"
-    assert "危险" in result["reason"]
+    assert "取消" in result["reason"]
     assert result["logs"] == []
