@@ -1,10 +1,33 @@
+# 敏感配置
 .env
+.env.local
+
+# Python 缓存
 __pycache__/
-.pytest_cache/
-.vscode/
-.idea/
 *.pyc
-logs/*.log
+*.pyo
+*.pyd
+
+# 虚拟环境
+.venv/
 venv/
 env/
+
+# IDE 配置
+.vscode/
+.idea/
+*.swp
+
+# 日志文件
+logs/
+*.log
+
+# 测试缓存
+.pytest_cache/
+
+# 系统文件
 .DS_Store
+Thumbs.db
+
+# 数据文件
+data/notes/*.txt  
